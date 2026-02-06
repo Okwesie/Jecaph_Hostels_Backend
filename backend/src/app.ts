@@ -38,11 +38,25 @@ app.use(helmet({
 }));
 
 // CORS configuration
+const allowedOrigins = [
+  'https://v0-jecaph-hostel-management-app-fro.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  ...(config.CORS_ORIGIN ? config.CORS_ORIGIN.split(',') : []),
+];
+
 app.use(cors({
-  origin: config.CORS_ORIGIN?.split(',') || config.FRONTEND_URL,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Allow all for now during development
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Hostel-ID'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Hostel-ID', 'X-Campus-ID'],
 }));
 
 // Compression
@@ -68,6 +82,33 @@ app.get('/health', (_req, res) => {
     timestamp: new Date().toISOString(),
     environment: config.NODE_ENV,
     version: '1.0.0'
+  });
+});
+
+app.get('/api/health', (_req, res) => {
+  res.json({ 
+    success: true,
+    data: {
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      version: '1.0.0'
+    }
+  });
+});
+
+// Feature flags endpoint (used by frontend)
+app.get('/api/feature-flags', (_req, res) => {
+  res.json({
+    success: true,
+    data: {
+      room_booking: true,
+      shuttle_service: true,
+      maintenance_requests: true,
+      support_tickets: true,
+      payments: true,
+      feedback: true,
+      profile_upload: true,
+    }
   });
 });
 
