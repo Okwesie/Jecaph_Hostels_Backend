@@ -1,0 +1,391 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Campus {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(255)
+  location    String   @db.VarChar(255)
+  address     String   @db.Text
+  description String?  @db.Text
+  capacity    Int      @default(0)
+  totalRooms  Int      @default(0) @map("total_rooms")
+  imageUrl    String?  @map("image_url") @db.VarChar(500)
+  status      String   @default("inactive") @db.VarChar(50)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  users       User[]
+
+  @@index([status])
+  @@index([name])
+  @@map("campuses")
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique @db.VarChar(255)
+  passwordHash    String    @map("password_hash") @db.VarChar(255)
+  firstName       String    @map("first_name") @db.VarChar(100)
+  lastName        String    @map("last_name") @db.VarChar(100)
+  phone           String?   @db.VarChar(20)
+  emergencyContact String?  @map("emergency_contact") @db.VarChar(100)
+  program         String?   @db.VarChar(100)
+  campusId        String?   @map("campus_id")
+  role            String    @default("student") @db.VarChar(50)
+  status          String    @default("active") @db.VarChar(50)
+  emailVerified   Boolean   @default(false) @map("email_verified")
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  profilePicture  String?   @map("profile_picture") @db.VarChar(500)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  campus              Campus?            @relation(fields: [campusId], references: [id])
+  bookings            Booking[]
+  shuttleBookings     ShuttleBooking[]
+  maintenanceRequests MaintenanceRequest[]
+  payments            Payment[]
+  invoices            Invoice[]
+  feedback            Feedback[]
+  supportTickets      SupportTicket[] @relation("TicketCreator")
+  assignedTickets     SupportTicket[] @relation("TicketAssignee")
+  assignedMaintenance MaintenanceRequest[] @relation("MaintenanceAssignee")
+  ticketMessages      TicketMessage[]
+  passwordResetTokens PasswordResetToken[]
+  refreshTokens       RefreshToken[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@index([campusId])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model Room {
+  id               String    @id @default(uuid())
+  roomNumber       String    @unique @map("room_number") @db.VarChar(50)
+  roomType         String    @map("room_type") @db.VarChar(50)
+  capacity         Int
+  pricePerMonth    Decimal   @map("price_per_month") @db.Decimal(10, 2)
+  currentOccupancy Int       @default(0) @map("current_occupancy")
+  status           String    @default("available") @db.VarChar(50)
+  amenities        String[]
+  description      String?   @db.Text
+  features         String?   @db.Text
+  imageUrl         String?   @map("image_url") @db.VarChar(500)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  bookings            Booking[]
+  maintenanceRequests MaintenanceRequest[]
+
+  @@index([roomNumber])
+  @@index([roomType])
+  @@index([status])
+  @@index([pricePerMonth])
+  @@map("rooms")
+}
+
+model Booking {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  roomId            String   @map("room_id")
+  checkInDate       DateTime @map("check_in_date") @db.Date
+  checkOutDate      DateTime @map("check_out_date") @db.Date
+  durationMonths    Int      @map("duration_months")
+  totalAmount       Decimal  @map("total_amount") @db.Decimal(10, 2)
+  amountPaid        Decimal  @default(0) @map("amount_paid") @db.Decimal(10, 2)
+  outstandingBalance Decimal @map("outstanding_balance") @db.Decimal(10, 2)
+  status            String   @default("pending") @db.VarChar(50)
+  notes             String?  @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room     Room      @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  payments Payment[]
+  invoices Invoice[]
+
+  @@index([userId])
+  @@index([roomId])
+  @@index([status])
+  @@index([checkInDate])
+  @@index([createdAt])
+  @@map("bookings")
+}
+
+model ShuttleRoute {
+  id            String   @id @default(uuid())
+  routeFrom     String   @map("route_from") @db.VarChar(100)
+  routeTo       String   @map("route_to") @db.VarChar(100)
+  departureTime DateTime @map("departure_time") @db.Time
+  arrivalTime   DateTime @map("arrival_time") @db.Time
+  pricePerSeat  Decimal  @map("price_per_seat") @db.Decimal(8, 2)
+  totalSeats    Int      @map("total_seats")
+  driverName    String?  @map("driver_name") @db.VarChar(100)
+  vehicleType   String?  @map("vehicle_type") @db.VarChar(100)
+  frequency     String?  @db.VarChar(50)
+  status        String   @default("active") @db.VarChar(50)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  bookings ShuttleBooking[]
+
+  @@index([routeFrom])
+  @@index([routeTo])
+  @@index([departureTime])
+  @@map("shuttle_routes")
+}
+
+model ShuttleBooking {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  routeId     String   @map("route_id")
+  bookingDate DateTime @map("booking_date") @db.Date
+  seatsBooked Int      @map("seats_booked")
+  totalPrice  Decimal  @map("total_price") @db.Decimal(10, 2)
+  status      String   @default("confirmed") @db.VarChar(50)
+  qrCode      String?  @map("qr_code") @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  route ShuttleRoute @relation(fields: [routeId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([routeId])
+  @@index([bookingDate])
+  @@index([status])
+  @@map("shuttle_bookings")
+}
+
+model MaintenanceRequest {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  roomId       String?   @map("room_id")
+  title        String    @db.VarChar(255)
+  category     String    @db.VarChar(100)
+  priority     String    @db.VarChar(50)
+  description  String    @db.Text
+  status       String    @default("new") @db.VarChar(50)
+  assignedTo   String?   @map("assigned_to")
+  staffResponse String?  @map("staff_response") @db.Text
+  attachmentUrl String?  @map("attachment_url") @db.VarChar(500)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  completedAt  DateTime? @map("completed_at")
+
+  user       User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room       Room?  @relation(fields: [roomId], references: [id])
+  assignedToUser User? @relation("MaintenanceAssignee", fields: [assignedTo], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([createdAt])
+  @@map("maintenance_requests")
+}
+
+model Payment {
+  id                 String    @id @default(uuid())
+  userId             String    @map("user_id")
+  bookingId          String?   @map("booking_id")
+  amount             Decimal   @db.Decimal(10, 2)
+  currency           String    @default("GHS") @db.VarChar(3)
+  paymentMethod      String    @map("payment_method") @db.VarChar(100)
+  status             String    @default("pending") @db.VarChar(50)
+  transactionReference String? @unique @map("transaction_reference") @db.VarChar(255)
+  paymentType        String    @map("payment_type") @db.VarChar(100)
+  referenceId        String?   @map("reference_id") @db.VarChar(255)
+  createdAt          DateTime  @default(now()) @map("created_at")
+  completedAt        DateTime? @map("completed_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id])
+
+  @@index([userId])
+  @@index([bookingId])
+  @@index([status])
+  @@index([transactionReference])
+  @@index([createdAt])
+  @@map("payments")
+}
+
+model Invoice {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  bookingId   String?   @map("booking_id")
+  invoiceNumber String  @unique @map("invoice_number") @db.VarChar(50)
+  amountDue   Decimal   @map("amount_due") @db.Decimal(10, 2)
+  amountPaid  Decimal   @default(0) @map("amount_paid") @db.Decimal(10, 2)
+  dueDate     DateTime  @map("due_date") @db.Date
+  status      String    @default("unpaid") @db.VarChar(50)
+  description String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  paidAt      DateTime? @map("paid_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id])
+
+  @@index([userId])
+  @@index([invoiceNumber])
+  @@index([status])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
+model Feedback {
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id")
+  rating           Int
+  category         String    @map("category") @db.VarChar(100)
+  title            String    @db.VarChar(255)
+  feedbackText     String    @map("feedback_text") @db.Text
+  anonymous        Boolean   @default(false)
+  adminResponse    String?   @map("admin_response") @db.Text
+  adminResponseDate DateTime? @map("admin_response_date")
+  status           String    @default("pending") @map("status") @db.VarChar(50)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([rating])
+  @@index([category])
+  @@index([status])
+  @@index([createdAt])
+  @@map("feedback")
+}
+
+model SupportTicket {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  ticketNumber String   @unique @map("ticket_number") @db.VarChar(50)
+  category    String    @db.VarChar(100)
+  priority    String    @db.VarChar(50)
+  subject     String    @db.VarChar(255)
+  description String    @db.Text
+  status      String    @default("open") @db.VarChar(50)
+  assignedTo  String?   @map("assigned_to")
+  attachmentUrl String? @map("attachment_url") @db.VarChar(500)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  resolvedAt  DateTime? @map("resolved_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user         User            @relation("TicketCreator", fields: [userId], references: [id], onDelete: Cascade)
+  assignedUser User?           @relation("TicketAssignee", fields: [assignedTo], references: [id])
+  messages     TicketMessage[]
+
+  @@index([userId])
+  @@index([ticketNumber])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id          String   @id @default(uuid())
+  ticketId    String   @map("ticket_id")
+  senderId    String   @map("sender_id")
+  messageText String   @map("message_text") @db.Text
+  attachmentUrl String? @map("attachment_url") @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender User         @relation(fields: [senderId], references: [id])
+
+  @@index([ticketId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("ticket_messages")
+}
+
+model OtpCode {
+  id        String   @id @default(uuid())
+  email     String   @db.VarChar(255)
+  otpCode   String   @map("otp_code") @db.VarChar(10)
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@index([expiresAt])
+  @@map("otp_codes")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([expiresAt])
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  settingKey  String   @unique @map("setting_key") @db.VarChar(255)
+  settingValue String? @map("setting_value") @db.Text
+  settingType String   @default("string") @map("setting_type") @db.VarChar(50)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([settingKey])
+  @@map("system_settings")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  action     String   @db.VarChar(255)
+  entityType String?  @map("entity_type") @db.VarChar(100)
+  entityId   String?  @map("entity_id") @db.VarChar(255)
+  changes    Json?
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([action])
+  @@index([entityType])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
