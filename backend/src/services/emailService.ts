@@ -1,24 +1,10 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { config } from '../config/env';
 import logger from '../utils/logger';
 
-let transporter: nodemailer.Transporter | null = null;
-
-const createTransporter = (): nodemailer.Transporter => {
-  if (transporter) return transporter;
-
-  transporter = nodemailer.createTransport({
-    host: config.SMTP_HOST,
-    port: config.SMTP_PORT,
-    secure: config.SMTP_SECURE,
-    auth: {
-      user: config.SMTP_USER,
-      pass: config.SMTP_PASS,
-    },
-  });
-
-  return transporter;
-};
+// Use Resend API (works on Render - uses HTTPS, not SMTP)
+const resendApiKey = process.env.RESEND_API_KEY;
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 export const sendEmail = async (
   to: string,
@@ -26,19 +12,26 @@ export const sendEmail = async (
   html: string,
   text?: string
 ): Promise<void> => {
+  if (!resend) {
+    logger.warn(`Email not sent (no RESEND_API_KEY configured). To: ${to}, Subject: ${subject}`);
+    return;
+  }
+
   try {
-    const mailTransporter = createTransporter();
-
-    const mailOptions = {
-      from: `"${config.EMAIL_FROM_NAME}" <${config.EMAIL_FROM}>`,
-      to,
+    const { data, error } = await resend.emails.send({
+      from: `${config.EMAIL_FROM_NAME || 'JECAPH Hostels'} <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
+      to: [to],
       subject,
-      text: text || html.replace(/<[^>]*>/g, ''),
       html,
-    };
+      text: text || html.replace(/<[^>]*>/g, ''),
+    });
 
-    const info = await mailTransporter.sendMail(mailOptions);
-    logger.info(`Email sent to ${to}: ${info.messageId}`);
+    if (error) {
+      logger.error(`Resend error sending to ${to}:`, error);
+      throw new Error(error.message);
+    }
+
+    logger.info(`Email sent to ${to}: ${data?.id}`);
   } catch (error) {
     logger.error(`Failed to send email to ${to}:`, error);
     throw error;
