@@ -35,6 +35,7 @@ model User {
   passwordHash    String    @map("password_hash") @db.VarChar(255)
   firstName       String    @map("first_name") @db.VarChar(100)
   lastName        String    @map("last_name") @db.VarChar(100)
+  studentId       String?   @unique @map("student_id") @db.VarChar(50)
   phone           String?   @db.VarChar(20)
   emergencyContact String?  @map("emergency_contact") @db.VarChar(100)
   program         String?   @db.VarChar(100)

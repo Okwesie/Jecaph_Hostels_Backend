@@ -16,6 +16,9 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     // Accept multiple field name formats from frontend
     let firstName = req.body.firstName || req.body.first_name || req.body.firstname || '';
     let lastName = req.body.lastName || req.body.last_name || req.body.lastname || '';
+    const phone = req.body.phone || req.body.phoneNumber || req.body.phone_number || null;
+    const studentId = req.body.studentId || req.body.student_id || req.body.studentID || null;
+    const campusId = req.body.campusId || req.body.campus_id || req.body.campus || null;
 
     // Handle "name" or "fullName" as a single field
     if (!firstName && !lastName) {
@@ -42,6 +45,16 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       throw new ConflictError('Email already registered');
     }
 
+    // Check if student ID already taken
+    if (studentId) {
+      const existingStudent = await prisma.user.findUnique({
+        where: { studentId },
+      });
+      if (existingStudent) {
+        throw new ConflictError('Student ID already registered');
+      }
+    }
+
     // Hash password
     const passwordHash = await hashPassword(password);
 
@@ -52,6 +65,9 @@ export const register = async (req: Request, res: Response, next: NextFunction):
         passwordHash,
         firstName: (firstName || 'User').trim(),
         lastName: (lastName || 'Account').trim(),
+        phone: phone || null,
+        studentId: studentId || null,
+        campusId: campusId || null,
         role: 'student',
         status: 'active',
         emailVerified: false,
@@ -61,6 +77,8 @@ export const register = async (req: Request, res: Response, next: NextFunction):
         email: true,
         firstName: true,
         lastName: true,
+        studentId: true,
+        phone: true,
         role: true,
         emailVerified: true,
       },
