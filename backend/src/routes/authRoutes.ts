@@ -6,12 +6,10 @@ import { authenticate } from '../middleware/auth';
 
 const router = Router();
 
-// Register
+// Register - flexible field names handled in controller
 router.post(
   '/register',
   validate([
-    firstNameValidation,
-    lastNameValidation,
     emailValidation,
     passwordValidation,
   ]),

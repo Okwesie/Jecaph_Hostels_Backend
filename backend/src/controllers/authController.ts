@@ -11,7 +11,19 @@ import { AuthRequest } from '../middleware/auth';
 
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
   try {
-    const { firstName, lastName, email, password } = req.body;
+    const { email, password } = req.body;
+
+    // Accept multiple field name formats from frontend
+    let firstName = req.body.firstName || req.body.first_name || req.body.firstname || '';
+    let lastName = req.body.lastName || req.body.last_name || req.body.lastname || '';
+
+    // Handle "name" or "fullName" as a single field
+    if (!firstName && !lastName) {
+      const fullName = req.body.name || req.body.fullName || req.body.full_name || '';
+      const parts = fullName.trim().split(/\s+/);
+      firstName = parts[0] || 'User';
+      lastName = parts.slice(1).join(' ') || 'Account';
+    }
 
     // Validate password strength
     const passwordValidation = validatePasswordStrength(password);
@@ -38,8 +50,8 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       data: {
         email: email.toLowerCase(),
         passwordHash,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
+        firstName: (firstName || 'User').trim(),
+        lastName: (lastName || 'Account').trim(),
         role: 'student',
         status: 'active',
         emailVerified: false,
