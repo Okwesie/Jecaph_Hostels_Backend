@@ -18,7 +18,25 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     let lastName = req.body.lastName || req.body.last_name || req.body.lastname || '';
     const phone = req.body.phone || req.body.phoneNumber || req.body.phone_number || null;
     const studentId = req.body.studentId || req.body.student_id || req.body.studentID || null;
-    const campusId = req.body.campusId || req.body.campus_id || req.body.campus || null;
+    let campusInput = req.body.campusId || req.body.campus_id || req.body.campus || null;
+
+    // Resolve campus: accept UUID or name
+    let resolvedCampusId: string | null = null;
+    if (campusInput) {
+      // Check if it's a valid UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(campusInput)) {
+        // Verify the campus UUID exists
+        const campus = await prisma.campus.findUnique({ where: { id: campusInput } });
+        resolvedCampusId = campus ? campus.id : null;
+      } else {
+        // Try to find campus by name (partial match)
+        const campus = await prisma.campus.findFirst({
+          where: { name: { contains: campusInput, mode: 'insensitive' } },
+        });
+        resolvedCampusId = campus ? campus.id : null;
+      }
+    }
 
     // Handle "name" or "fullName" as a single field
     if (!firstName && !lastName) {
@@ -67,7 +85,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
         lastName: (lastName || 'Account').trim(),
         phone: phone || null,
         studentId: studentId || null,
-        campusId: campusId || null,
+        campusId: resolvedCampusId,
         role: 'student',
         status: 'active',
         emailVerified: false,
