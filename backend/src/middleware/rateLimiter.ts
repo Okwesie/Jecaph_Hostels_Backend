@@ -27,7 +27,7 @@ const isRedisAvailable = () => {
 export const authLimiter = rateLimit({
   store: isRedisAvailable() ? createRedisStore('rl:auth:') : undefined,
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: 30,
   keyGenerator: (req: Request) => req.ip || 'unknown',
   handler: (_req: Request, _res: Response, next: NextFunction) => {
     next(new AppError(
@@ -36,7 +36,7 @@ export const authLimiter = rateLimit({
       429,
       {
         retry_after: 900, // 15 minutes in seconds
-        limit: 5
+        limit: 30
       }
     ));
   },
